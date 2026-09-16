@@ -29,6 +29,15 @@ jobs:
         - '!**/CHANGELOG.md'
         renovate:
         - .github/renovate.json
+        # Everything the skills checks read or run with, except the files release-please rewrites
+        # (marketplace.json, .release-please-manifest.json), so release pull requests skip the job.
+        skills:
+        - skills/**
+        - scripts/**
+        - mise.toml
+        - mise.lock
+        - .mise/**
+        - .github/workflows/lint.yaml
         yaml:
         - '**.yaml'
       git_ref: ${{ github.event.pull_request.head.sha || github.ref }}
@@ -71,20 +80,19 @@ jobs:
       git_ref: ${{ github.event.pull_request.head.sha || github.ref }}
       files: ${{ github.event_name != 'pull_request' && 'ALL' || fromJSON(needs.detect-changes.outputs.results).renovate_all_changed_files }}
 
-  # The skills-specific checks (mise.toml tasks, tools pinned there). They run on every pull request: skill
-  # content, the marketplace manifest and the release-please version all feed the same invariants.
+  # The skills-specific checks (mise.toml tasks, tools pinned there). On pull requests they run only when their inputs change
+  # (the `skills` file group above).
   skills:
+    needs: [detect-changes]
+    if: ${{ github.event_name != 'pull_request' || fromJSON(needs.detect-changes.outputs.results).skills_any_changed == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
     - name: Setup repository and tools
-      uses: ppat/homelab-ops-actions/actions/setup-repository-tools@1ca11af183c2f3f117e9e83638c3949a399070a0 # v2.6.0
+      uses: ppat/homelab-ops-actions/actions/setup-repository-tools@2045fb6e6cb00ab099280625b6989cf62ccc1b77 # v2.7.0
       with:
         current_git_ref: ${{ github.event.pull_request.head.sha || github.ref }}
         current_repository: ${{ github.repository }}
-        # mise.lock uses lockfile format v2, which the action's default mise cannot read.
-        # renovate: datasource=github-releases depName=jdx/mise
-        mise_version: v2026.9.7
         token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Lint skills

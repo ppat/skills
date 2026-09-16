@@ -54,6 +54,12 @@ The tools come from `mise.toml`. Commit messages, markdown, YAML, workflow secur
 hooks run through the shared `ppat/github-workflows` jobs in the same workflow. Run `pre-commit run --all-files`
 locally for most of those.
 
+On pull requests, the `skills` job runs only when one of its inputs changed: `skills/**`, the check scripts,
+`mise.toml`, `mise.lock`, `.mise/**`, or `lint.yaml` itself (the `skills` file group in `detect-changes`). The
+files release-please rewrites (`marketplace.json`, `.release-please-manifest.json`) are deliberately left out so
+release pull requests skip the job; a hand edit to `marketplace.json` alone is therefore unchecked until the
+weekly scheduled run.
+
 | Task | Catches | Does not catch |
 | --- | --- | --- |
 | `lint:manifest`: `claude plugin validate . --strict` | Marketplace schema, reserved names, path traversal | Anything inside a `SKILL.md`: it passes a bad name, name/folder mismatch, unknown fields and broken links |
@@ -79,9 +85,8 @@ not exist here.
   shims are on `PATH` and no `python` is configured, installing skillscheck fails with "No version is set for
   shim: python".
 - `mise.lock` (format v2) and the `.mise/locks/` files it references are committed; `mise install --locked` in the
-  `skills` job fails if either is stale. The `setup-repository-tools` default mise cannot read format v2, so the
-  job pins `mise_version`. `[settings.npm] package_manager = "aube"` in `mise.toml` makes `mise lock` embed the
-  `npm:` dependency graph the locked install needs; a global `bun` package manager silently omits it.
+  `skills` job fails if either is stale. `[settings.npm] package_manager = "aube"` in `mise.toml` makes `mise lock`
+  embed the `npm:` dependency graph the locked install needs; a global `bun` package manager silently omits it.
 - release-please reads its config from `main` through the API, never from the pull request branch, so its dry run
   cannot validate config changes that have not landed.
 
