@@ -1,0 +1,107 @@
+---
+# yamllint disable rule:line-length
+name: lint
+
+on:
+  pull_request:
+  schedule:
+  - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# Checkouts use the pull request's head SHA rather than its branch name: the repository is public, and a fork's
+# branch does not exist in this repository, while its head commit is fetchable here. Every job runs without secrets.
+jobs:
+  detect-changes:
+    uses: ppat/github-workflows/.github/workflows/detect-changed-files.yaml@e14e9bf7b53f4094382443db8bbff9e7d6b1e5b1 # v8.1.0
+    with:
+      files_yaml: |
+        actions:
+        - .github/workflows/**
+        markdown:
+        - '**.md'
+        - '!**/CHANGELOG.md'
+        renovate:
+        - .github/renovate.json
+        yaml:
+        - '**.yaml'
+      git_ref: ${{ github.event.pull_request.head.sha || github.ref }}
+
+  commit-messages:
+    if: ${{ github.event_name == 'pull_request' }}
+    uses: ppat/github-workflows/.github/workflows/lint-commit-messages.yaml@e14e9bf7b53f4094382443db8bbff9e7d6b1e5b1 # v8.1.0
+    with:
+      git_ref: ${{ github.event.pull_request.head.sha }}
+      fetch_depth: ${{ github.event.pull_request.commits || 0 }}
+      from: ${{ github.event.pull_request.head.sha || 'HEAD' }}~${{ github.event.pull_request.commits || '1' }}
+      to: ${{ github.event.pull_request.head.sha || 'HEAD' }}
+
+  github-actions:
+    needs: [detect-changes]
+    if: ${{ github.event_name != 'pull_request' || fromJSON(needs.detect-changes.outputs.results).actions_any_changed == 'true' }}
+    uses: ppat/github-workflows/.github/workflows/lint-github-actions.yaml@e14e9bf7b53f4094382443db8bbff9e7d6b1e5b1 # v8.1.0
+    with:
+      git_ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      files: ${{ github.event_name != 'pull_request' && 'ALL' || fromJSON(needs.detect-changes.outputs.results).actions_all_changed_files }}
+
+  markdown:
+    needs: [detect-changes]
+    if: ${{ github.event_name != 'pull_request' || fromJSON(needs.detect-changes.outputs.results).markdown_any_changed == 'true' }}
+    uses: ppat/github-workflows/.github/workflows/lint-markdown.yaml@e14e9bf7b53f4094382443db8bbff9e7d6b1e5b1 # v8.1.0
+    with:
+      git_ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      files: ${{ github.event_name != 'pull_request' && 'ALL' || fromJSON(needs.detect-changes.outputs.results).markdown_all_changed_files }}
+
+  pre-commit:
+    uses: ppat/github-workflows/.github/workflows/lint-pre-commit.yaml@e14e9bf7b53f4094382443db8bbff9e7d6b1e5b1 # v8.1.0
+    with:
+      git_ref: ${{ github.event.pull_request.head.sha || github.ref }}
+
+  renovate-config-check:
+    needs: [detect-changes]
+    if: ${{ github.event_name != 'pull_request' || fromJSON(needs.detect-changes.outputs.results).renovate_any_changed == 'true' }}
+    uses: ppat/github-workflows/.github/workflows/lint-renovate-config-check.yaml@e14e9bf7b53f4094382443db8bbff9e7d6b1e5b1 # v8.1.0
+    with:
+      git_ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      files: ${{ github.event_name != 'pull_request' && 'ALL' || fromJSON(needs.detect-changes.outputs.results).renovate_all_changed_files }}
+
+  # The skills-specific checks (mise.toml tasks, tools pinned there). They run on every pull request: skill
+  # content, the marketplace manifest and the release-please version all feed the same invariants.
+  skills:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+    - name: Setup repository and tools
+      uses: ppat/homelab-ops-actions/actions/setup-repository-tools@1ca11af183c2f3f117e9e83638c3949a399070a0 # v2.6.0
+      with:
+        current_git_ref: ${{ github.event.pull_request.head.sha || github.ref }}
+        current_repository: ${{ github.repository }}
+        # mise.lock uses lockfile format v2, which the action's default mise cannot read.
+        # renovate: datasource=github-releases depName=jdx/mise
+        mise_version: v2026.9.7
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Lint skills
+      working-directory: ./current
+      run: mise run lint
+
+  yaml:
+    needs: [detect-changes]
+    if: ${{ github.event_name != 'pull_request' || fromJSON(needs.detect-changes.outputs.results).yaml_any_changed == 'true' }}
+    uses: ppat/github-workflows/.github/workflows/lint-yaml.yaml@e14e9bf7b53f4094382443db8bbff9e7d6b1e5b1 # v8.1.0
+    with:
+      git_ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      files: ${{ github.event_name != 'pull_request' && 'ALL' || fromJSON(needs.detect-changes.outputs.results).yaml_all_changed_files }}
+
+  zizmor:
+    needs: [detect-changes]
+    if: ${{ github.event_name != 'pull_request' || fromJSON(needs.detect-changes.outputs.results).actions_any_changed == 'true' }}
+    uses: ppat/github-workflows/.github/workflows/lint-zizmor.yaml@e14e9bf7b53f4094382443db8bbff9e7d6b1e5b1 # v8.1.0
+    with:
+      git_ref: ${{ github.event.pull_request.head.sha || github.ref }}

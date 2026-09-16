@@ -1,0 +1,27 @@
+---
+# yamllint disable rule:line-length
+name: release
+
+on:
+  pull_request:
+    paths:
+    - '.github/workflows/release.yaml'
+    - 'release-please-config.json'
+  push:
+    branches:
+    - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+permissions: {}
+
+jobs:
+  release:
+    uses: ppat/github-workflows/.github/workflows/release-please.yaml@e14e9bf7b53f4094382443db8bbff9e7d6b1e5b1 # v8.1.0
+    with:
+      dry_run: ${{ github.event_name == 'pull_request' }}
+    secrets:
+      app_client_id: ${{ secrets.HOMELAB_BOT_CLIENT_ID }}
+      app_private_key: ${{ secrets.HOMELAB_BOT_APP_PRIVATE_KEY }}

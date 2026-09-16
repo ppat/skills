@@ -1,0 +1,42 @@
+# Tools behind the skills-specific checks (`mise run lint`), shared by local runs and the `skills` job
+# in .github/workflows/lint.yaml. Renovate tracks these pins through its mise manager.
+#
+# Claude Code comes from its native release binary. Under mise's npm backend in CI the npm package fails with
+# "claude native binary not installed": the binary arrives through install scripts or an optional dependency
+# that install skips.
+
+[tools]
+node = "24.20.0"
+python = "3.14.7"
+uv = "0.12.13"
+"aqua:anthropics/claude-code" = "2.1.269"
+"npm:skills" = "1.5.26"
+"pipx:skillscheck" = "0.9.7"
+
+[settings.pipx]
+uvx = true
+
+# Pinned so `mise lock` embeds the npm dependency graph that `mise install --locked` (CI) requires, whatever
+# package manager a contributor's global mise config selects.
+[settings.npm]
+package_manager = "aube"
+
+[tasks."lint:manifest"]
+description = "Claude Code marketplace manifest schema (does not inspect skill content)"
+run = "claude plugin validate . --strict"
+
+[tasks."lint:spec"]
+description = "Agent Skills spec, links and budgets via skillscheck, with the named exceptions in the script"
+run = "python3 scripts/lint_skills_spec.py"
+
+[tasks."lint:sync"]
+description = "marketplace.json lists exactly the skill folders on disk, at the release-please version"
+run = "python3 scripts/check_marketplace.py"
+
+[tasks."lint:install"]
+description = "the skills CLI installs exactly the skill folders on disk"
+run = "python3 scripts/check_install.py"
+
+[tasks.lint]
+description = "All skills-specific checks"
+depends = ["lint:manifest", "lint:spec", "lint:sync", "lint:install"]
