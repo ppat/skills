@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "ppatlabs",
+  "description": "Agent Skills by ppat, bundled as a single Claude Code plugin.",
+  "owner": {
+    "name": "ppat",
+    "url": "https://github.com/ppat"
+  },
+  "plugins": [
+    {
+      "name": "ppatlabs",
+      "description": "Method-level Agent Skills: deriving a repository's commit taxonomy, and selecting a framework or tool defensibly.",
+      "version": "0.0.0",
+      "author": {
+        "name": "ppat",
+        "url": "https://github.com/ppat"
+      },
+      "homepage": "https://github.com/ppat/skills",
+      "repository": "https://github.com/ppat/skills",
+      "license": "MIT",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/derive-commit-taxonomy",
+        "./skills/select-framework-or-tool"
+      ]
+    }
+  ]
+}
