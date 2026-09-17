@@ -51,7 +51,8 @@ over the spec's 1,024-character limit but within Claude Code's 1,536. Trimming i
 
 `mise run lint` runs the skills-specific checks locally and in the `skills` job of `.github/workflows/lint.yaml`.
 The tools come from `mise.toml`. Commit messages, markdown, YAML, workflow security and the generic pre-commit
-hooks run through the shared `ppat/github-workflows` jobs in the same workflow. Run `pre-commit run --all-files`
+hooks run through the shared `ppat/github-workflows` jobs in the same workflow; the pull request title and the header
+that will land are checked in `.github/workflows/commit-header.yaml`. Run `pre-commit run --all-files`
 locally for most of those.
 
 On pull requests, the `skills` job runs only when one of its inputs changed: `skills/**`, the check scripts,
@@ -92,10 +93,7 @@ not exist here.
 
 ## Commit conventions
 
-commitlint gates every pull request, and release-please derives the version and changelog from commit headers.
-
-- Scopes: `''`, `github-actions`, `internal-dependencies` and `release`, plus every skill folder name, which
-  `commitlint.config.js` reads from `skills/`. Scope a change to one skill with its folder name. Scope a change
-  that spans skills, or removes one, with `''`.
-- There is no `bump-minor-pre-major`, so `!` cuts a major release even before `1.0.0`.
-- Do not hand-edit `CHANGELOG.md`, `.release-please-manifest.json` or the plugin `version`.
+`.claude/rules/commits.md` decides every header: the type decides whether a release happens, a rendered type's scope
+names the skills (or `marketplace`) consumers receive, and a hidden type's names the internal surface. `commitlint.config.js` and
+`.github/scripts/check_commit_header.py` enforce it. Do not hand-edit `CHANGELOG.md`, `.release-please-manifest.json`
+or the plugin `version`.

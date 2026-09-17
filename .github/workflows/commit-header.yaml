@@ -1,0 +1,90 @@
+---
+# yamllint disable rule:line-length
+name: commit-header
+
+# The header that lands on main is the string release-please parses, and it is not always a commit the
+# `commit-messages` job in lint.yaml has seen. With squash_merge_commit_title COMMIT_OR_PR_TITLE, a single-commit pull
+# request lands that commit's header and a multi-commit one lands its title. This workflow checks the title against the
+# commitlint config, then checks whichever header will land against the pull request's diff.
+#
+# It is its own workflow because of `edited`: a title can change after every other check is green, and on lint.yaml
+# that trigger would re-run every lint job each time release-please rewrites its pull request body.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # renovate: datasource=npm depName=bun
+  BUN_VERSION: "1.4.2"
+  # renovate: datasource=node-version depName=node
+  NODE_VERSION: "24.20.0"
+
+jobs:
+  commit-header:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+    - name: Setup repository and tools
+      uses: ppat/homelab-ops-actions/actions/setup-repository-tools@2045fb6e6cb00ab099280625b6989cf62ccc1b77 # v2.7.0
+      with:
+        # Full history, so the diff can be taken from the merge base with the pull request's base.
+        current_fetch_depth: 0
+        current_git_ref: ${{ github.event.pull_request.head.sha }}
+        current_repository: ${{ github.repository }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        # yamllint disable-line rule:indentation
+        mise_toml: |
+          [tools]
+          bun  = "${{ env.BUN_VERSION }}"
+          node = "${{ env.NODE_VERSION }}"
+
+    # The commitlint toolchain comes from ppat/github-workflows, where the `commit-messages` job resolves it too, so
+    # the title and the commits are judged by the same commitlint.
+    - name: Checkout commitlint toolchain
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 1
+        path: tools
+        repository: ppat/github-workflows
+        ref: main
+        persist-credentials: false
+
+    - name: Install node packages
+      shell: bash
+      working-directory: ./current
+      # yamllint disable-line rule:indentation
+      run: |
+        cp "$GITHUB_WORKSPACE/tools/package.json" "$GITHUB_WORKSPACE/tools/bun.lock" .
+        bun install --frozen-lockfile
+
+    # Untrusted text reaches the shell only through env.
+    - name: Lint the pull request title
+      shell: bash
+      working-directory: ./current
+      env:
+        PR_TITLE: ${{ github.event.pull_request.title }}
+      run: printf '%s\n' "${PR_TITLE}" | bunx commitlint --color --verbose
+
+    # First, so the verdict below comes from a checker that has just caught every defect it is meant to catch.
+    - name: Self-test the header check
+      shell: bash
+      working-directory: ./current
+      run: python3 .github/scripts/check_commit_header.py --self-test
+
+    - name: Check the landed header against the diff
+      shell: bash
+      working-directory: ./current
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        COMMITS: ${{ github.event.pull_request.commits }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        PR_TITLE: ${{ github.event.pull_request.title }}
+      run: python3 .github/scripts/check_commit_header.py --base "${BASE_SHA}" --head "${HEAD_SHA}" --commits "${COMMITS}" --title="${PR_TITLE}"
