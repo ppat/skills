@@ -10,7 +10,7 @@
     {
       "name": "ppatlabs",
       "description": "Method-level Agent Skills: deriving a repository's commit taxonomy, and selecting a framework or tool defensibly.",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "author": {
         "name": "ppat",
         "url": "https://github.com/ppat"
