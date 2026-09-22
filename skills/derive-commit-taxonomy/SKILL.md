@@ -14,7 +14,7 @@ description: >
   ordered set of questions, the traps that took adversarial review rounds to
   find, and a verification shape — not an answer: every repo's taxonomy is
   different (especially the scopes), and importing another repo's enum is the
-  first named failure mode. Derived from two repositories so far; treat its
+  first named failure mode. Derived from three repositories so far; treat its
   generalisations accordingly and extend it after each new repo it is applied
   to. Do NOT use it for writing an individual commit message in a repo whose
   taxonomy already exists — that is what the repo's own commit rules are for.
@@ -35,14 +35,15 @@ You are producing four things, grounded in evidence from this specific repo:
    [Verification](#verification)).
 
 What you are NOT doing: copying the enum from a repo where this was done
-before. Two repos have been through this method; one needed scopes carrying
-released-artifact identity (21 independently versioned modules), the other
-needed scopes naming maintenance surfaces of a single artifact. Their type
-enums converged; their scope enums share almost nothing. The scopes are where
-the repo's real structure shows up, and that structure must be *derived*, not
-assumed. A sample of two is also too small to trust any "usually" in this file
-— where this skill says "in both repos so far", read that as the strength of
-the claim, not a law.
+before. Three repos have been through this method; one needed scopes carrying
+released-artifact identity (21 independently versioned modules), the other two
+needed scopes naming maintenance surfaces of a single artifact set, and in the
+third the component axis was measured out of the scope and left to labels.
+Their type enums converged; their scope enums share only the maintenance
+surfaces. The scopes are where the repo's real structure shows up, and that
+structure must be *derived*, not assumed. A sample of three is still too small
+to trust any "usually" in this file — where this skill says "in every repo so
+far", read that as the strength of the claim, not a law.
 
 ## Evidence discipline
 
@@ -74,15 +75,19 @@ uses — and read the taxonomy off what the release layer can actually address.
 In a multi-artifact repo the scope may need to carry artifact identity; in a
 single-artifact repo it will not, and the useful axis is more likely "does
 this change reach a consumer of the artifact?" — the shipped/internal
-boundary. Also establish what *sizes* a release (usually type + breaking
-marker) and what *renders* in the changelog (visibility flags), including the
-edge semantics: in release-please, `hidden` gates whether a release exists at
-all, and a breaking marker renders and bumps regardless of `hidden`.
+boundary. Read that boundary from whatever actually decides an artifact's
+contents when one exists — the paths an image build copies in, the directory a
+chart is packaged from — before falling back to a workflow's path filter,
+which is a proxy for it. Also establish what *sizes* a release (usually type +
+breaking marker) and what *renders* in the changelog (visibility flags),
+including the edge semantics: in release-please, `hidden` gates whether a
+release exists at all, and a breaking marker renders and bumps regardless of
+`hidden`.
 
 ### Q2 — For each header field, what reads it, and does anything act on it?
 
 The central question, because the instinct is wrong. The instinct says scope
-is operative — that it routes releases. In both repos so far, the release
+is operative — that it routes releases. In every repo so far, the release
 machinery routed by **path** and sized by **type**; scope routed *nothing*
 (verified by grepping the pinned release tool's source for scope usage, not by
 reading its docs). When that holds, the header is a **claim about the diff**,
@@ -116,7 +121,11 @@ A lint job existing tells you almost nothing. Ask all of:
    `pre-commit` CI job can silently omit the one hook you rely on (e.g. a
    `commit-msg`-stage hook that `pre-commit run --all-files` never fires).
 4. **Does the merge path respect it — per actor?** See the first trap below;
-   this decomposes further than it looks.
+   this decomposes further than it looks. Read the bot's own merge path in its
+   source: Renovate's automerge refuses a branch with any failed check run,
+   required or not, so an advisory check already blocks the bot's automerge
+   class and only that class — the human path and the bot path can differ in
+   one repo.
 
 Until all four hold, the taxonomy is advisory, history is unreliable (see
 evidence discipline), and any migration plan built on "non-conforming PRs will
@@ -131,7 +140,11 @@ field that can place a type or scope into a header — and check it against the
 enum. The disagreement has two failure modes and you must establish which one
 this repo faces: if the gate is required and the merge path respects it,
 off-enum emission **stops updates loudly**; if not, off-enum headers
-**accumulate silently** for months. Both have been observed. Which one you
+**accumulate silently** for months. Both have been observed. And enum
+membership is not the whole question: where the enum legitimately admits the
+empty scope for shipped dependency bumps, a *false* header is in-enum — a
+test-only image bumped as `fix:`, a preset pin bumped as `feat!:`. Derive
+truth as well as membership (see Layer 1). Which one you
 face determines the entire migration sequencing: fix emitters and prepare the
 enum *before* arming the gate, so no intermediate state either blocks routine
 updates or lets junk accumulate.
@@ -154,6 +167,13 @@ procedure was. One name with a rule beats six names without one. But check
 the denominator before arguing from usage counts, and say plainly when a new
 rule outlaws the majority historical habit — adoption then depends on the
 gate, not on drift.
+
+Whether the scope should carry a component at all is measurable before any
+design is drawn: count the components each planned ticket or each merged
+change spans (labels, or the top-level directories a diff touched). A
+single-valued scope is empty on every change that spans two, so where most do,
+the component belongs in a multi-valued channel the repo already has, and the
+scope names the surface instead.
 
 ### Q6 — What does a shared-preset or config upgrade do to emission?
 
@@ -266,6 +286,15 @@ will take it as ground truth about the upstream project — and reason from it.
 - **Degenerate template renders**: path-indexing templates can render empty or
   truncated segments silently (`feat(infra-)!:` from a missing path index).
   Include the degenerate cases in any closure computation.
+- **The unset spelling is the empty string.** Renovate's guard on
+  `commitMessagePrefix` tests falsiness, so `""` returns a cell to the plain
+  semantic header after an earlier rule set a literal prefix; there is no
+  other way to undo a prefix a preset or a local rule already applied.
+- **A grouped branch carries one header for every file in the group.** A pin
+  in a file that never ships can legitimately ride a shipped group (the Go pin
+  in the toolchain manifest rides the image base-image pins); a truth check
+  over emission must treat a cell as shipped when any member of its group is,
+  or it flags the group's honest header.
 
 ## Verification
 
@@ -295,6 +324,19 @@ analysis. Re-running per commit turns repo-state dependence from a gap into
 the mechanism: a new directory, a moved package, or a pin bump re-derives the
 closure automatically. The re-run trigger must include occupancy changes (a
 package appearing in a new directory), not just config changes.
+
+Where the enum admits the empty scope for shipped changes, membership is
+half the closure. Add a truth predicate over the same occupancy: a cell in a
+file that never ships may never render a claim type or a breaking marker; a
+shipped cell's major renders the marker if that is the policy; every scope a
+cell resolves to is claimed by the repo's own config. Membership catches the
+enum drift; truth catches the false claim that is in-enum.
+
+An abstract model of the emitter (a few upgrade classes instead of concrete
+dependencies) holds only while every rule's effect is uniform across a class.
+Once types legitimately vary by update type and by file — `feat`/`fix` for
+shipped pins, `chore` for internal ones — only concrete occupancy, re-derived
+from the tracked tree on every run, enumerates the set honestly.
 
 **The attack — verify the verifier's own scope.** A soundness argument like
 "every emitted scope is in the enum" holds only over the mechanism it was
@@ -341,6 +383,12 @@ that has never caught an injected defect is an argument, not a check. And
 hold the falsifiers themselves to the wrong-prior trap — a falsifier can
 enforce the very prior it should be catching, and once did.
 
+Defence in depth makes an injection a no-op: when two rules each absorb the
+same defect, removing one changes nothing the check reads, and a harness
+that credits the unchanged verdict as a catch has proven the opposite. Inject
+by removing every rule that absorbs the defect, and require the harness to
+report "still passes" rather than "caught" when an injection moves nothing.
+
 ## Writing the rule document
 
 The deliverable a future session actually uses — typically
@@ -367,16 +415,22 @@ earned their place:
   the invariant to re-check, not the preset's current contents.
 - Tables where they carry density; prose for reasoning that does not
   tabulate. Keep it short enough to always be loaded (well under 200 lines).
+- **In a repo that keeps a document set, the rule document is one deliverable
+  of several.** The decision goes where that repo records decisions, with the
+  rejected scope model as the alternative; the process document gets the
+  pointer; a build-state tracker gets the resolution of whatever question
+  waited on the taxonomy. A rule file alone leaves the repo's own authority
+  contradicting it.
 
 ## Amending this skill
 
-This method has been applied to two repositories. The questions and traps
-above transferred between those two; the answers did not — and some of what
-reads as general here may yet prove to be a property of that pair (both are
+This method has been applied to three repositories. The questions and traps
+above transferred between them; the answers did not — and some of what reads
+as general here may yet prove to be a property of that set (all are
 one-maintainer repos, squash-merge, release-please + Renovate + commitlint;
 a merge-commit repo, a multi-maintainer repo, or a different release stack
 will stress different assumptions). After applying this skill to a new repo:
 record what the method missed, which trap fired again (recurrence is what
-promotes a one-repo observation to doctrine), and which "in both repos so
-far" claims survived a third data point — then edit this file. The traps
+promotes a one-repo observation to doctrine), and which "in every repo so
+far" claims survived another data point — then edit this file. The traps
 section earns its keep only if it grows.
