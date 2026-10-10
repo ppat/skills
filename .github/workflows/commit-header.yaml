@@ -33,7 +33,7 @@ jobs:
     timeout-minutes: 5
     steps:
     - name: Setup repository and tools
-      uses: ppat/homelab-ops-actions/actions/setup-repository-tools@d21b387fa6a35e48f78985a1e636ec728866981e # v2.8.0
+      uses: ppat/homelab-ops-actions/actions/setup-repository-tools@0909115ff750ef6935faf8ca8b64b0dc4bbbc38f # v2.9.0
       with:
         # Full history, so the diff can be taken from the merge base with the pull request's base.
         current_fetch_depth: 0
