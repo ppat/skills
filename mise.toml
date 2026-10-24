@@ -6,11 +6,11 @@
 # that install skips.
 
 [tools]
-node = "24.20.0"
-python = "3.14.7"
-uv = "0.12.13"
-"aqua:anthropics/claude-code" = "2.1.269"
-"npm:skills" = "1.5.26"
+node = "24.22.0"
+python = "3.15.0"
+uv = "0.13.1"
+"aqua:anthropics/claude-code" = "2.1.309"
+"npm:skills" = "1.7.2"
 "pipx:skillscheck" = "0.9.7"
 
 [settings.pipx]
