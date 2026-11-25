@@ -77,7 +77,7 @@ url = "https://nodejs.org/dist/v24.20.0/node-v24.20.0-win-x64.zip"
 
 [[tools."npm:skills"]]
 version = "1.5.26"
-aube = { path = ".mise/locks/npm-skills/1.5.26", digest = "sha256:b35ef514c927b8cc22ceda0e92a884c8a1885cde73be97dd7b22662dade149d7" }
+aube = { path = ".mise/locks/npm-skills/1.5.26", digest = "sha256:f52d0d936138011cbb276074faa6e2c01e6e9c55da01757f2a22e43f0dbf9705" }
 backend = "npm:skills"
 specifiers = ["1.5.26"]
 
